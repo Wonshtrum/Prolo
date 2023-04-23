@@ -9,6 +9,7 @@ enum Term {
 #[derive(Clone)]
 enum Value {
     Number(i64),
+    Name(&'static str),
 }
 
 #[derive(Clone)]
@@ -54,12 +55,15 @@ impl Term {
 
     fn unify(&self, other: &Term, bindings: &mut Bindings) -> bool {
         match (self.eval(bindings), other.eval(bindings)) {
-            (Term::Value(Value::Number(n1)), Term::Value(Value::Number(n2))) => n1 == n2,
             (Term::Variable(v1), Term::Variable(v2)) => v1 == v2,
+            (Term::Value(Value::Name(n1)), Term::Value(Value::Name(n2))) => n1 == n2,
+            (Term::Value(Value::Number(n1)), Term::Value(Value::Number(n2))) => n1 == n2,
             (Term::Variable(v), Term::Value(n)) | (Term::Value(n), Term::Variable(v)) => {
                 bindings.insert(v, n);
                 true
             }
+            // mismatched Value types
+            _ => false,
         }
     }
 }
@@ -145,6 +149,7 @@ impl fmt::Debug for Value {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
             Value::Number(n) => write!(f, "{}", n),
+            Value::Name(n) => write!(f, "{:?}", n),
         }
     }
 }
