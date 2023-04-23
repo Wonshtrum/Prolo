@@ -1,20 +1,23 @@
 use std::{collections::HashMap, fmt};
 
+#[derive(Clone, PartialEq, Eq, Hash)]
+struct Literal(&'static str);
+
 #[derive(Clone, PartialEq)]
 enum Term {
     Value(Value),
-    Variable(String),
+    Variable(Literal),
 }
 
 #[derive(Clone, PartialEq)]
 enum Value {
     Number(i64),
-    Name(&'static str),
+    Name(Literal),
 }
 
 #[derive(Clone)]
 struct Fact {
-    name: String,
+    name: Literal,
     args: Vec<Term>,
     exec: bool,
 }
@@ -27,15 +30,15 @@ struct Rule {
 
 #[derive(Clone)]
 struct Interpreter {
-    rules: HashMap<String, Vec<Rule>>,
+    rules: HashMap<Literal, Vec<Rule>>,
 }
 
 impl From<&'static str> for Term {
     fn from(s: &'static str) -> Self {
         if s.chars().next().map(|c| c.is_uppercase()).unwrap_or(false) {
-            Term::Variable(s.to_string())
+            Term::Variable(Literal(s))
         } else {
-            Term::Value(Value::Name(s))
+            Term::Value(Value::Name(Literal(s)))
         }
     }
 }
@@ -45,7 +48,7 @@ impl From<i64> for Term {
     }
 }
 
-type Bindings = HashMap<String, Value>;
+type Bindings = HashMap<Literal, Value>;
 
 impl Term {
     fn eval(&self, bindings: &Bindings) -> Term {
@@ -132,7 +135,7 @@ impl Interpreter {
         let fact = fact.eval(bindings);
         if fact.exec {
             let args = &fact.args;
-            let result = match fact.name.as_str() {
+            let result = match fact.name.0 {
                 "neq" => args[0] != args[1],
                 "gte" => match (&args[0], &args[1]) {
                     (Term::Value(Value::Number(n1)), Term::Value(Value::Number(n2))) => n1 >= n2,
@@ -195,6 +198,17 @@ impl Interpreter {
     }
 }
 
+impl fmt::Debug for Literal {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "{:?}", self.0)
+    }
+}
+impl fmt::Display for Literal {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "{}", self.0)
+    }
+}
+
 impl fmt::Debug for Term {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
@@ -253,7 +267,7 @@ fn is_builtin(name: &str) -> bool {
 macro_rules! fact {
      ($name:literal $(( $($args:expr),+ ))?) => {
         Fact {
-            name: $name.to_string(),
+            name: Literal($name),
             args: vec![$($($args.into()),+)?],
             exec: is_builtin($name),
         }
@@ -265,13 +279,13 @@ macro_rules! rule {
      $body_name:literal $(( $($body_args:expr),+ ))?),+ )?) => {
         Rule {
             head: Fact {
-                name: $head_name.to_string(),
+                name: Literal($head_name),
                 args: vec![$($($head_args.into()),+)?],
                 exec: false,
             },
             body: vec![$($(
                 Fact {
-                    name: $body_name.to_string(),
+                    name: Literal($body_name),
                     args: vec![$($($body_args.into()),+)?],
                     exec: is_builtin($body_name),
                 }
@@ -288,13 +302,13 @@ macro_rules! rules {
         vec![$(
             Rule {
                 head: Fact {
-                    name: $head_name.to_string(),
+                    name: Literal($head_name),
                     args: vec![$($($head_args.into()),+)?],
                     exec: false,
                 },
                 body: vec![$($(
                     Fact {
-                        name: $body_name.to_string(),
+                        name: Literal($body_name),
                         args: vec![$($($body_args.into()),+)?],
                         exec: is_builtin($body_name),
                     }
