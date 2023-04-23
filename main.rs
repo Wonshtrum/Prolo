@@ -2,8 +2,13 @@ use std::{collections::HashMap, fmt};
 
 #[derive(Clone)]
 enum Term {
-    Number(i64),
+    Value(Value),
     Variable(String),
+}
+
+#[derive(Clone)]
+enum Value {
+    Number(i64),
 }
 
 #[derive(Clone)]
@@ -30,29 +35,29 @@ impl From<&str> for Term {
 }
 impl From<i64> for Term {
     fn from(n: i64) -> Self {
-        Term::Number(n)
+        Term::Value(Value::Number(n))
     }
 }
 
-type Bindings = HashMap<String, Term>;
+type Bindings = HashMap<String, Value>;
 
 impl Term {
     fn eval(&self, bindings: &Bindings) -> Term {
         match self {
-            Term::Number(n) => Term::Number(*n),
+            Term::Value(v) => Term::Value(v.clone()),
             Term::Variable(v) => match bindings.get(v) {
                 None => Term::Variable(v.clone()),
-                Some(t) => t.clone().eval(bindings),
+                Some(v) => Term::Value(v.clone()),
             },
         }
     }
 
     fn unify(&self, other: &Term, bindings: &mut Bindings) -> bool {
         match (self.eval(bindings), other.eval(bindings)) {
-            (Term::Number(n1), Term::Number(n2)) => n1 == n2,
+            (Term::Value(Value::Number(n1)), Term::Value(Value::Number(n2))) => n1 == n2,
             (Term::Variable(v1), Term::Variable(v2)) => v1 == v2,
-            (Term::Variable(v), Term::Number(n)) | (Term::Number(n), Term::Variable(v)) => {
-                bindings.insert(v.clone(), Term::Number(n));
+            (Term::Variable(v), Term::Value(n)) | (Term::Value(n), Term::Variable(v)) => {
+                bindings.insert(v, n);
                 true
             }
         }
@@ -130,8 +135,16 @@ impl Interpreter {
 impl fmt::Debug for Term {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            Term::Number(n) => write!(f, "{}", n),
-            Term::Variable(s) => write!(f, "{}", s),
+            Term::Value(v) => write!(f, "{:?}", v),
+            Term::Variable(v) => write!(f, "{}", v),
+        }
+    }
+}
+
+impl fmt::Debug for Value {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            Value::Number(n) => write!(f, "{}", n),
         }
     }
 }
@@ -160,9 +173,9 @@ impl fmt::Debug for Rule {
 
 impl fmt::Debug for Interpreter {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        for (_, rules) in &self.rules {
+        for rules in self.rules.values() {
             for rule in rules {
-                write!(f, "{:?}\n", rule)?;
+                writeln!(f, "{:?}", rule)?;
             }
         }
         Ok(())
